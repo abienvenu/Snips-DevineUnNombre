@@ -8,39 +8,55 @@ from random import randint
 secretNumber = {'value': 0}
 
 
+def humaniser(nombre):
+    nombre = round(nombre, 4)
+    if str(nombre)[-2:] == ".0":
+        nombre = int(nombre)
+    return nombre
+
+
 def start_guess_number(slots):
-    maxNumber = slots.Guess.first().value
-    secretNumber['value'] = randint(1, maxNumber)
-    return "Ok, essaie de deviner le nombre auquel je pense"
+    minNumber = 1
+    maxNumber = 30
+    if slots.Min.first():
+        minNumber = humaniser(slots.Min.first().value)
+    if slots.Max.first():
+        maxNumber = humaniser(slots.Max.first().value)
+    secretNumber['value'] = randint(minNumber, maxNumber)
+    return "Je pense à un nombre entre 1 et {}, essaie de deviner lequel".\
+        format(maxNumber)
 
 
 def try_number(hermes, intent_message):
-    guess = intent_message.slots.Guess.first().value
+    guess = humaniser(intent_message.slots.Guess.first().value)
     number = secretNumber['value']
     if guess == number:
-        sentence = "Bravo, tu as trouvé, c'était bien {}".format(number)
+        sentence = "Bravo, tu as trouvé, c'était bien {}!\
+        À quand la prochaine partie ?".format(number)
         hermes.publish_end_session(intent_message.session_id, sentence)
     elif guess < number:
-        return "Non, c'est plus"
+        return "Non, c'est plusse que {}".format(guess)
     else:
-        return "Non, c'est moins"
+        return "Non, c'est moins que {}".format(guess)
 
 
 def intent_callback(hermes, intent_message):
     intent_name = intent_message.intent.intent_name.replace("abienvenu:", "")
-    result = None
+    sentence = None
     if intent_name == "startGuessNumber":
         sentence = start_guess_number(intent_message.slots)
     elif intent_name == "tryNumber":
         sentence = try_number(hermes, intent_message)
     elif intent_name == "stopGuessNumber":
-        sentence = "Ok, on arrête de jouer"
+        sentence = "Le nombre à deviner était {}. \
+        J'espère qu'on rejouera bientôt.".format(secretNumber['value'])
         hermes.publish_end_session(intent_message.session_id, sentence)
 
-    if result is not None:
+    if sentence is not None:
         hermes.publish_continue_session(
             intent_message.session_id,
-            sentence
+            sentence,
+            ["abienvenu:tryNumber", "abienvenu:stopGuessNumber"]
         )
 
 
